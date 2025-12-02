@@ -1,0 +1,990 @@
+public interface QuizCompleteListener {
+    void onQuizComplete(String username, int score, int totalQuestions);
+    
+}
+
+import java.awt.*;
+import javax.swing.*;
+
+public class takeQuizMainMenu extends JFrame {
+    private String currentUsername;
+    private QuizScore quizScore;
+
+    public takeQuizMainMenu() {
+        quizScore = new QuizScore();
+        initializeMainMenu();
+    }
+
+    private void initializeMainMenu() {
+        setTitle("Health and Safety Quiz Application");
+        setSize(400, 500);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        setResizable(false);
+
+        // Main panel with gradient background
+        JPanel mainPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                
+                Color color1 = new Color(135, 206, 235); // Sky blue
+                Color color2 = new Color(255, 255, 255); // White
+                GradientPaint gp = new GradientPaint(0, 0, color1, 0, getHeight(), color2);
+                g2d.setPaint(gp);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(40, 30, 40, 30));
+
+        // Title
+        JLabel titleLabel = new JLabel("Health & Safety Quiz");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        titleLabel.setForeground(new Color(25, 25, 112)); // Dark blue
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel subtitleLabel = new JLabel("Test Your Knowledge");
+        subtitleLabel.setFont(new Font("Arial", Font.ITALIC, 16));
+        subtitleLabel.setForeground(new Color(70, 70, 70));
+        subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // Username input
+        JPanel usernamePanel = new JPanel(new FlowLayout());
+        usernamePanel.setOpaque(false);
+        JLabel usernameLabel = new JLabel("Enter your name:");
+        usernameLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        JTextField usernameField = new JTextField(15);
+        usernameField.setFont(new Font("Arial", Font.PLAIN, 14));
+        usernamePanel.add(usernameLabel);
+        usernamePanel.add(usernameField);
+
+        // Buttons
+        JButton takeQuizButton = createMenuButton("Take Quiz (21 Questions)", new Color(34, 139, 34));
+        JButton viewScoresButton = createMenuButton("View Score History", new Color(30, 144, 255));
+        JButton exitButton = createMenuButton("Exit", new Color(220, 20, 60));
+
+        // Button actions
+        takeQuizButton.addActionListener(e -> {
+            String username = usernameField.getText().trim();
+            if (username.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please enter your name first!", "Name Required", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            currentUsername = username;
+            startQuiz();
+        });
+
+        viewScoresButton.addActionListener(e -> {
+            String username = usernameField.getText().trim();
+            if (username.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please enter your name first!", "Name Required", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            quizScore.displayScoresFromFile(username);
+        });
+
+        exitButton.addActionListener(e -> {
+            int choice = JOptionPane.showConfirmDialog(this, "Are you sure you want to exit?", "Exit Confirmation", JOptionPane.YES_NO_OPTION);
+            if (choice == JOptionPane.YES_OPTION) {
+                System.exit(0);
+            }
+        });
+
+        // Add components to main panel
+        mainPanel.add(Box.createVerticalGlue());
+        mainPanel.add(titleLabel);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        mainPanel.add(subtitleLabel);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 40)));
+        mainPanel.add(usernamePanel);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 30)));
+        mainPanel.add(takeQuizButton);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+        mainPanel.add(viewScoresButton);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+        mainPanel.add(exitButton);
+        mainPanel.add(Box.createVerticalGlue());
+
+        add(mainPanel);
+        setVisible(true);
+    }
+
+    private JButton createMenuButton(String text, Color backgroundColor) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Arial", Font.BOLD, 16));
+        button.setPreferredSize(new Dimension(280, 50));
+        button.setMaximumSize(new Dimension(280, 50));
+        button.setBackground(backgroundColor);
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setAlignmentX(Component.CENTER_ALIGNMENT);
+        button.setBorder(BorderFactory.createRaisedBorderBorder());
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Add hover effect
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            Color originalColor = backgroundColor;
+            
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(backgroundColor.brighter());
+            }
+            
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(originalColor);
+            }
+        });
+
+        return button;
+    }
+
+    private void startQuiz() {
+        // Hide the main menu
+        setVisible(false);
+        
+        // Create and start the quiz
+        takeQuizModule quizModule = new takeQuizModule();
+        
+        // Set up the quiz complete listener to handle results
+        quizModule.setQuizCompleteListener(new QuizCompleteListener() {
+            @Override
+            public void onQuizComplete(String username, int score, int totalQuestions) {
+                // Save the score using QuizScore class
+                quizScore.saveScoreToFile(username, score, totalQuestions);
+                
+                // Show the main menu again
+                setVisible(true);
+            }
+        });
+        
+        // Start the quiz with the current username
+        quizModule.startQuiz(currentUsername);
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeel());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            new takeQuizMainMenu();
+        });
+    }
+}
+
+import java.awt.*;
+import java.util.*;
+import java.util.List;
+import javax.swing.*;
+import javax.swing.border.LineBorder;
+import javax.swing.text.*;
+
+// Main class
+public class takeQuizModule extends JFrame implements QuizCompleteListener {
+    
+    // Store user info and quiz state
+    private String username;
+    private int score = 0;
+    private int currentQuestion = 0;
+    private boolean answered = false;
+    private QuizCompleteListener quizCompleteListener;
+
+    private final JPanel mainPanel;
+    private final JTextPane questionTextPane;
+    private final JButton optionA, optionB, optionC;
+    private final JButton nextButton;
+
+    // Components to true/false and fill-in-the-blank questions
+    private final JButton trueButton = new JButton("True");
+    private final JButton falseButton = new JButton("False");
+    private final JTextField fillBlankTextField = new JTextField();
+
+    // Fill-in-the-blank questions 
+    private final List<FillInBlankQuestion> fillInBlankQuestions = Arrays.asList(
+        new FillInBlankQuestion("Social media affects our behaviors, mental health, and __________.", Arrays.asList("privacy")),
+        new FillInBlankQuestion("Hydration helps lubricate your __________ and improves tissue mobility.", Arrays.asList("joints")),
+        new FillInBlankQuestion("In case of an emergency, the first step is to _________ 999.", Arrays.asList("call")),
+        new FillInBlankQuestion("It is important to stay ________ and say no to drugs, alcohol, and harmful substances.", Arrays.asList("substance-free")),
+        new FillInBlankQuestion("Before you post or send something online, you should always stop and ________.", Arrays.asList("think"))
+    );
+
+    // Multiple choice questions
+    private final String[][] questions = {
+        {"Which of the following nutrients is essential for building and repairing tissues?", "Fiber", "Protein", "Vitamin C", "Protein"},
+        {"How does regular exercise contribute to overall wellness?", "By promoting social isolation", "By leading to weight gain", "By improving physical health", "By improving physical health"},
+        {"Which of the following activities can help reduce stress levels?", "Engaging in hobbies and interests", "Excessive consumption of alcohol", "Avoiding sleep and rest", "Engaging in hobbies and interests"},
+        {"What is one of the most immediate effects of sleep deprivation?", "Enhanced memory", "Impaired concentration", "Improved immune function", "Impaired concentration"},
+        {"How can you protect yourself from online scams?", "Ignore warning and click on links", "Avoid providing personal information", "Share your credit card details", "Avoid providing personal information"},
+        {"What is one risk of prolonged screen time without breaks?", "Dehydration", "Eye strain and myopia", "Hearing loss", "Eye strain and myopia"},
+        {"What is a benefit of setting up two-factor authentication?", "Easier to access", "Extra layer of protection", "Disables third-party apps", "Extra layer of protection"},
+        {"Which of the following is a consequence of substance abuse?", "Improved concentration", "Better health", "Psychological and social problems", "Psychological and social problems"}
+    };
+
+    // True/false questions
+    private final List<TrueFalseQuestion> trueFalseQuestions = Arrays.asList(
+        new TrueFalseQuestion("Taking a walk is one suggested alternative activity to give your eyes a break.", true),
+        new TrueFalseQuestion("Deleting third-party apps you don’t use can help protect your account.", true),
+        new TrueFalseQuestion("Being dehydrated can lead to fatigue, muscle cramps, and headaches.", true),
+        new TrueFalseQuestion("It is not necessary to provide specific information when calling 999.", false),
+        new TrueFalseQuestion("Reporting serious cyberbullying to the police may be necessary if someone’s safety is at risk.", true),
+        new TrueFalseQuestion("Academic pressure, family expectations, social media, and peer relationships are common modern stressors.", true),
+        new TrueFalseQuestion("Proteins help in tissue growth and repair.", true),
+        new TrueFalseQuestion("Exercise improves heart health and reduces disease risk.", true)
+    );
+
+    // Constructor to initialize the GUI
+    public takeQuizModule() {
+        setTitle("Health and Safety Quiz");
+        setSize(360, 640);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);  // Close the application when the window is closed
+        setLayout(new BorderLayout());
+        setResizable(false);
+        setLocationRelativeTo(null);
+
+        // Initialize and style components
+        mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(30, 20, 30, 20));
+        mainPanel.setBackground(Color.WHITE);
+
+        questionTextPane = new JTextPane();
+        questionTextPane.setEditable(false);
+        questionTextPane.setFont(new Font("Arial", Font.BOLD, 18));
+        questionTextPane.setOpaque(false);
+        questionTextPane.setMaximumSize(new Dimension(320, 100));
+        questionTextPane.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // MCQ buttons
+        optionA = createOptionButton();
+        optionB = createOptionButton();
+        optionC = createOptionButton();
+
+        // Style and handle true/false buttons
+        styleTFButton(trueButton);
+        trueButton.addActionListener(_ -> handleTFAnswer(trueButton));
+
+        styleTFButton(falseButton);
+        falseButton.addActionListener(_ -> handleTFAnswer(falseButton));
+
+        // Text field for fill-in-the-blank questions
+        fillBlankTextField.setMaximumSize(new Dimension(300, 40));
+        fillBlankTextField.setFont(new Font("Arial", Font.PLAIN, 16));
+
+        // Next button to go to next question
+        nextButton = new JButton("Next");
+        nextButton.setFont(new Font("Arial", Font.BOLD, 16));
+        nextButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        nextButton.setForeground(Color.BLACK);
+        nextButton.setBackground(Color.LIGHT_GRAY);
+        nextButton.setFocusPainted(false);
+        nextButton.addActionListener(_ -> {
+            if (isFillInBlankQuestion()) {
+                String userInput = fillBlankTextField.getText().trim();
+                if (userInput.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Please enter an answer before continuing.");
+                    return;
+                }
+            } else if (!answered) {
+                JOptionPane.showMessageDialog(this, "Please select an answer before continuing.");
+                return;
+            }
+            nextQuestion();
+        });
+
+        add(mainPanel, BorderLayout.CENTER);
+    }
+
+    // Add window closing event to return to main menu
+    @Override
+    public void dispose() {
+        super.dispose();
+        if (quizCompleteListener != null && currentQuestion > 0) {
+            // If quiz was started but not completed, still trigger the listener to show main menu
+            quizCompleteListener.onQuizComplete(username, score, questions.length + trueFalseQuestions.size() + fillInBlankQuestions.size());
+        }
+    }
+
+    private void centerAlignText(JTextPane textPane) {
+        StyledDocument doc = textPane.getStyledDocument();
+        SimpleAttributeSet center = new SimpleAttributeSet();
+        StyleConstants.setAlignment(center, StyleConstants.ALIGN_CENTER);
+        doc.setParagraphAttributes(0, doc.getLength(), center, false);
+    }
+
+    private boolean isFillInBlankQuestion() {
+        int mcqCount = questions.length;
+        int tfCount = trueFalseQuestions.size();
+        return currentQuestion >= mcqCount + tfCount;
+    }
+
+    // Method to create and style a multiple-choice questions
+    private JButton createOptionButton() {
+        JButton button = new JButton();
+        button.setFont(new Font("SansSerif", Font.PLAIN, 18));
+        button.setPreferredSize(new Dimension(300, 50));
+        button.setMaximumSize(new Dimension(300, 50));
+        button.setBackground(Color.WHITE);
+        button.setForeground(Color.BLACK);
+        button.setFocusPainted(false);
+        button.setAlignmentX(Component.CENTER_ALIGNMENT);
+        button.setOpaque(true);
+        button.setBorder(new LineBorder(Color.BLACK, 1, true));
+        button.addActionListener(_ -> handleMCQAnswer(button));
+        return button;
+    }
+
+    private void styleTFButton(JButton button) {
+        button.setFont(new Font("Arial", Font.PLAIN, 16));
+        button.setBackground(Color.WHITE);
+        button.setForeground(Color.BLACK);
+        button.setFocusPainted(false);
+        button.setAlignmentX(Component.CENTER_ALIGNMENT);
+        button.setMaximumSize(new Dimension(300, 50));
+        button.setOpaque(true);
+        button.setBorder(new LineBorder(Color.BLACK, 1, true));
+    }
+
+    public void startQuiz(String username) {
+        this.username = username; // Set current username
+        this.score = 0; // Reset score
+        this.currentQuestion = 0; // Start from first question
+        this.answered = false;
+        displayQuestion(); // Show first question
+    }
+
+    private void displayQuestion() {
+        mainPanel.removeAll();
+        nextButton.setText("Next");
+        int mcqCount = questions.length; // Total number of mutiple choice questions
+        int tfCount = trueFalseQuestions.size(); // Total number of true/false questions
+
+        if (currentQuestion < mcqCount) {
+            String[] q = questions[currentQuestion];
+            questionTextPane.setText(q[0]);
+            centerAlignText(questionTextPane);
+            optionA.setText(q[1]);
+            optionB.setText(q[2]);
+            optionC.setText(q[3]);
+            resetButtons(optionA, optionB, optionC);
+
+            JPanel mcqPanel = new JPanel();
+            mcqPanel.setLayout(new BoxLayout(mcqPanel, BoxLayout.Y_AXIS));
+            mcqPanel.setBackground(Color.WHITE);
+            mcqPanel.add(questionTextPane);
+
+            mcqPanel.add(Box.createRigidArea(new Dimension(0, 30)));
+            mcqPanel.add(optionA);
+            mcqPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+            mcqPanel.add(optionB);
+            mcqPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+            mcqPanel.add(optionC);
+            mcqPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+            mcqPanel.add(nextButton);
+
+            mainPanel.add(mcqPanel);
+
+        } else if (currentQuestion < mcqCount + tfCount) {
+            TrueFalseQuestion q = trueFalseQuestions.get(currentQuestion - mcqCount);
+            questionTextPane.setText(q.question);
+            centerAlignText(questionTextPane);
+            resetButtons(trueButton, falseButton);
+
+            mainPanel.add(questionTextPane);
+            mainPanel.add(Box.createRigidArea(new Dimension(0, 30)));
+            mainPanel.add(trueButton);
+            mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+            mainPanel.add(falseButton);
+            mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+            mainPanel.add(nextButton);
+
+        } else if (currentQuestion < mcqCount + tfCount + fillInBlankQuestions.size()) {
+            FillInBlankQuestion q = fillInBlankQuestions.get(currentQuestion - mcqCount - tfCount);
+            questionTextPane.setText(q.question);
+            centerAlignText(questionTextPane);
+            fillBlankTextField.setText("");
+
+            mainPanel.add(questionTextPane);
+            mainPanel.add(Box.createRigidArea(new Dimension(0, 30)));
+            mainPanel.add(fillBlankTextField);
+            mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+            mainPanel.add(nextButton);
+
+        } else {
+            // Quiz complete
+            if (quizCompleteListener != null) {
+                quizCompleteListener.onQuizComplete(username, score, questions.length + tfCount + fillInBlankQuestions.size());
+            } else {
+                // Show default completion message
+                JOptionPane.showMessageDialog(this, "Quiz completed!\nScore: " + score);
+            }
+             dispose();
+        }
+
+        mainPanel.revalidate();
+        mainPanel.repaint();
+    }
+
+    private void resetButtons(JButton... buttons) {
+        for (JButton btn : buttons) {
+            btn.setBackground(Color.WHITE);
+            btn.setForeground(Color.BLACK);
+        }
+    }
+
+    // Handle MCQ answer selection
+    private void handleMCQAnswer(JButton selected) {
+        resetButtons(optionA, optionB, optionC);
+        selected.setBackground(Color.LIGHT_GRAY);
+        selected.setForeground(Color.BLACK);
+        answered = true;
+    }
+
+    // Handle True/False answer selection
+    private void handleTFAnswer(JButton selected) {
+        resetButtons(trueButton, falseButton);
+        selected.setBackground(Color.LIGHT_GRAY);
+        selected.setForeground(Color.BLACK);
+        answered = true;
+    }
+
+    // Moves to the next question and evaluates answer
+    private void nextQuestion() {
+        int mcqCount = questions.length;
+        int tfCount = trueFalseQuestions.size();
+
+        if (currentQuestion < mcqCount) {
+            String correctAnswer = questions[currentQuestion][4];
+            if (optionA.getBackground() == Color.LIGHT_GRAY&& optionA.getText().equals(correctAnswer)) {
+                score++;
+            } else if (optionB.getBackground() == Color.LIGHT_GRAY&& optionB.getText().equals(correctAnswer)) {
+                score++;
+            } else if (optionC.getBackground() == Color.LIGHT_GRAY&& optionC.getText().equals(correctAnswer)) {
+                score++;
+            }
+
+        } else if (currentQuestion < mcqCount + tfCount) {
+            TrueFalseQuestion q = trueFalseQuestions.get(currentQuestion - mcqCount);
+            boolean selectedTrue = trueButton.getBackground() == Color.LIGHT_GRAY;
+            boolean selectedFalse = falseButton.getBackground() == Color.LIGHT_GRAY;
+
+            if ((selectedTrue && q.correctAnswer) || (selectedFalse && !q.correctAnswer)) {
+                score++;
+            }
+
+        } else if (currentQuestion < mcqCount + tfCount + fillInBlankQuestions.size()) {
+            String userAnswer = fillBlankTextField.getText().trim();
+            if (!userAnswer.isEmpty()) {
+                FillInBlankQuestion q = fillInBlankQuestions.get(currentQuestion - mcqCount - tfCount);
+                if (q.answers.stream().anyMatch(ans -> ans.equalsIgnoreCase(userAnswer))) {
+                    score++;
+                }
+            }
+        }
+
+        currentQuestion++;
+        answered = false;
+        displayQuestion();
+    }
+
+    @Override
+    public void onQuizComplete(String username, int score, int totalQuestions) {
+        JOptionPane.showMessageDialog(this, "Quiz completed!\nUser: " + username + "\nScore: " + score + " / " + totalQuestions);
+    }
+
+    // Class to represent True/False questions
+    static class TrueFalseQuestion {
+        String question;
+        boolean correctAnswer;
+        TrueFalseQuestion(String question, boolean correctAnswer) {
+            this.question = question;
+            this.correctAnswer = correctAnswer;
+        }
+    }
+
+    // Class for Fill-in-the-blank questions
+    static class FillInBlankQuestion {
+        String question;
+        List<String> answers;
+        FillInBlankQuestion(String question, List<String> answers) {
+            this.question = question;
+            this.answers = answers;
+        }
+    }
+
+    public void setQuizCompleteListener(QuizCompleteListener listener) {
+        this.quizCompleteListener = listener;
+    }
+}     
+
+import java.awt.*;
+import javax.swing.*;
+
+public class Main extends JFrame {
+
+    private UserStorage storage;
+    private JPanel mainPanel;
+    private CardLayout cardLayout;
+
+    //Panel names for navigation
+    private static final String WELCOME_PANEL = "Welcome";
+    private static final String SIGNUP_PANEL = "SignUp";
+    private static final String LOGIN_PANEL = "Login";
+    private static final String DASHBOARD_PANEL = "Dashboard";
+
+    public Main() {
+        storage = new UserStorage();
+        initializeGUI();
+    }
+
+    private void initializeGUI() {
+        setTitle("Health & Safety Learning Portal");
+        setSize(360, 640);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        setResizable(false);
+
+        //Use CardLayout for switching between panels
+        cardLayout = new CardLayout();
+        mainPanel = new JPanel(cardLayout);
+
+        //Create all panels
+        mainPanel.add(createWelcomePanel(), WELCOME_PANEL);
+        mainPanel.add(createSignUpPanel(), SIGNUP_PANEL);
+        mainPanel.add(createLoginPanel(), LOGIN_PANEL);
+
+        add(mainPanel);
+
+        //show welcome panel first
+        cardLayout.show(mainPanel, WELCOME_PANEL);
+    }
+
+    private JPanel createWelcomePanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(50, 30, 50, 30));
+        panel.setBackground(Color.WHITE);
+
+        //Title
+        JLabel titleLabel = new JLabel("Health & Safety Portal");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        titleLabel.setForeground(new Color(0, 102, 204));
+
+        //Subtitle
+        JLabel subtitleLabel = new JLabel("Learn. Practice. Stay Safe.");
+        subtitleLabel.setFont(new Font("Arial", Font.ITALIC, 16));
+        subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        subtitleLabel.setForeground(Color.GRAY);
+
+        //Buttons
+        JButton signUpButton = createStyledButton("Sign Up", new Color(0, 153, 76));
+        JButton loginButton = createStyledButton("Log In", new Color(0, 102, 204));
+        JButton exitButton = createStyledButton("Exit", new Color(204, 0, 0));
+
+        //Button actions
+        signUpButton.addActionListener(_ -> cardLayout.show(mainPanel, SIGNUP_PANEL));
+        loginButton.addActionListener(_ -> {
+            if (storage.loadUsers().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No users found. Please sign up first.", "Information", JOptionPane.INFORMATION_MESSAGE);
+            }
+            else {
+                cardLayout.show(mainPanel, LOGIN_PANEL);
+            }
+        });
+        exitButton.addActionListener(_ -> {
+            int result = JOptionPane.showConfirmDialog(this, "Are you sure you want to exit?", "Confirm Exit", JOptionPane.YES_NO_OPTION);
+            if (result == JOptionPane.YES_OPTION) {
+                System.exit(0);
+            }
+        });
+
+        //Add components
+        panel.add(Box.createRigidArea(new Dimension(0, 30)));
+        panel.add(titleLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 10)));
+        panel.add(subtitleLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 50)));
+        panel.add(signUpButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(loginButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(exitButton);
+
+        return panel;
+    }
+
+    private JPanel createSignUpPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+        panel.setBackground(Color.WHITE);
+
+        //Title
+        JLabel titleLabel = new JLabel("Create Account");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        //Form fields
+        JTextField usernameField = createStyledTextField("Username");
+        JTextField emailField = createStyledTextField("Email");
+        JPasswordField passwordField = createStyledPasswordField("Password");
+
+        //Buttons
+        JButton signUpButton = createStyledButton("Sign Up", new Color(0, 153, 76));
+        JButton backButton = createStyledButton("Back", Color.GRAY);
+
+        //Button actions
+        signUpButton.addActionListener(_ -> handleSignUp(usernameField, emailField, passwordField));
+        backButton.addActionListener(_ -> {
+            clearFields(usernameField, emailField, passwordField);
+            cardLayout.show(mainPanel, WELCOME_PANEL);
+        });
+
+        //Add components
+        panel.add(titleLabel);
+        panel.add(Box.createRigidArea(new Dimension(0,30)));
+        panel.add(createFieldPanelWithGuidance("Username:", usernameField, "(ONLY Alphabet and Numbers are allowed)"));
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(createFieldPanelWithGuidance("Email:", emailField, "(@gmail.com)"));
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(createFieldPanelWithGuidance("Password:", passwordField, "(MUST INCLUDE Alphabet, Numbers, and @/ !/ &)"));
+        panel.add(Box.createRigidArea(new Dimension(0, 30)));
+        panel.add(signUpButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(backButton);
+
+        return panel;
+    }
+
+    private JPanel createLoginPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(50, 30, 50, 30));
+        panel.setBackground(Color.WHITE);
+        
+        // Title
+        JLabel titleLabel = new JLabel("Welcome Back");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        // Form fields
+        JTextField usernameField = createStyledTextField("Username");
+        JPasswordField passwordField = createStyledPasswordField("Password");
+        
+        // Buttons
+        JButton loginButton = createStyledButton("Log In", new Color(0, 102, 204));
+        JButton forgotButton = createStyledButton("Forgot Password?", Color.ORANGE);
+        JButton backButton = createStyledButton("Back", Color.GRAY);
+        
+        // Button actions
+        loginButton.addActionListener(_ -> handleLogin(usernameField, passwordField));
+        forgotButton.addActionListener(_ -> handleForgotPassword());
+        backButton.addActionListener(_ -> {
+            clearFields(usernameField, passwordField);
+            cardLayout.show(mainPanel, WELCOME_PANEL);
+        });
+        
+        // Add components
+        panel.add(titleLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 40)));
+        panel.add(createFieldPanel("Username:", usernameField));
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(createFieldPanel("Password:", passwordField));
+        panel.add(Box.createRigidArea(new Dimension(0, 30)));
+        panel.add(loginButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(forgotButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(backButton);
+        
+        return panel;
+    }
+
+    public void showDashboard(String username) {
+        // Create and show dashboard panel
+        JPanel dashboardPanel = createDashboardPanel(username);
+        mainPanel.removeAll();
+        mainPanel.add(dashboardPanel, DASHBOARD_PANEL);
+        cardLayout.show(mainPanel, DASHBOARD_PANEL);
+        revalidate();
+        repaint();
+    }
+
+    private JPanel createDashboardPanel(String username) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+        panel.setBackground(Color.WHITE);
+        
+        // Welcome message
+        JLabel welcomeLabel = new JLabel("Welcome, " + username + "!");
+        welcomeLabel.setFont(new Font("Arial", Font.BOLD, 20));
+        welcomeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        JLabel descLabel = new JLabel("Health and Safety Learning Portal");
+        descLabel.setFont(new Font("Arial", Font.ITALIC, 14));
+        descLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        descLabel.setForeground(Color.GRAY);
+        
+        // Action buttons
+        JButton learningButton = createStyledButton("Start Learning Module", new Color(0, 153, 76));
+        JButton quizButton = createStyledButton("Take Quiz", new Color(255, 153, 0));
+        JButton scoresButton = createStyledButton("View Past Quiz Scores", new Color(102, 51, 153));
+        JButton gamificationButton = createStyledButton("Ranking", new Color(255, 51, 51));
+        JButton logoutButton = createStyledButton("Logout", Color.GRAY);
+        
+        // Button actions
+        learningButton.addActionListener(_ -> {
+            learningModule module = new learningModule(this, username);
+            this.setVisible(false); // Hide the main window
+            module.setVisible(true);
+        });
+        
+        quizButton.addActionListener(_ -> {
+            takeQuizModule quiz = new takeQuizModule();
+            QuizScore scoreManager = new QuizScore();
+            
+            quiz.setQuizCompleteListener((_, score, total) -> {
+                scoreManager.saveScoreToFile(username, score, total);
+            });
+            
+            quiz.startQuiz(username);
+        });
+        
+        scoresButton.addActionListener(_ -> {
+            QuizScore scoreManager = new QuizScore();
+            scoreManager.displayScoresFromFile(username);
+        });
+        
+        gamificationButton.addActionListener(_ -> {
+            GamificationModule gamify = new GamificationModule(username);
+            gamify.launchGamification(username);
+        });
+        
+        logoutButton.addActionListener(_ -> {
+            int result = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to logout?",
+                "Confirm Logout",
+                JOptionPane.YES_NO_OPTION);
+            if (result == JOptionPane.YES_OPTION) {
+                cardLayout.show(mainPanel, WELCOME_PANEL);
+            }
+        });
+        
+        // Add components
+        panel.add(welcomeLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 5)));
+        panel.add(descLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 30)));
+        panel.add(learningButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(quizButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(scoresButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        panel.add(gamificationButton);
+        panel.add(Box.createRigidArea(new Dimension(0, 30)));
+        panel.add(logoutButton);
+        
+        return panel;
+    }
+    
+    private JButton createStyledButton(String text, Color color) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Arial", Font.BOLD, 14));
+        button.setBackground(color);
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setOpaque(true);
+        button.setAlignmentX(Component.CENTER_ALIGNMENT);
+        button.setMaximumSize(new Dimension(300, 40));
+        button.setPreferredSize(new Dimension(300, 40));
+        return button;
+    }
+    
+    private JTextField createStyledTextField(String placeholder) {
+        JTextField field = new JTextField();
+        field.setFont(new Font("Arial", Font.PLAIN, 14));
+        field.setMaximumSize(new Dimension(300, 30));
+        field.setPreferredSize(new Dimension(300, 30));
+        return field;
+    }
+    
+    private JPasswordField createStyledPasswordField(String placeholder) {
+        JPasswordField field = new JPasswordField();
+        field.setFont(new Font("Arial", Font.PLAIN, 14));
+        field.setMaximumSize(new Dimension(300, 30));
+        field.setPreferredSize(new Dimension(300, 30));
+        return field;
+    }
+
+    private JPanel createFieldPanelWithGuidance(String labelText, JComponent field, String guidanceText) { 
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(Color.WHITE);
+
+        //Create a horizontal panel for label and guidance
+        JPanel labelPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
+        labelPanel.setBackground(Color.WHITE);
+
+        JLabel label = new JLabel(labelText);
+        label.setFont(new Font("Arial", Font.BOLD, 12));
+
+        JLabel guidance = new JLabel(guidanceText);
+        guidance.setFont(new Font("Arial", Font.ITALIC, 10));
+        guidance.setForeground(new Color(100, 100, 100));
+
+        labelPanel.add(label);
+        labelPanel.add(guidance);
+
+        field.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        panel.add(labelPanel);
+        panel.add(Box.createRigidArea(new Dimension(0, 5)));
+        panel.add(field);
+
+        return panel;
+    }
+    
+    private JPanel createFieldPanel(String labelText, JComponent field) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(Color.WHITE);
+        
+        JLabel label = new JLabel(labelText);
+        label.setFont(new Font("Arial", Font.BOLD, 12));
+        label.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        field.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        panel.add(label);
+        panel.add(Box.createRigidArea(new Dimension(0, 5)));
+        panel.add(field);
+        
+        return panel;
+    }
+
+    private void handleSignUp(JTextField usernameField, JTextField emailField, JPasswordField passwordField) {
+        String username = usernameField.getText().trim();
+        String email = emailField.getText().trim();
+        String password = new String(passwordField.getPassword());
+        
+        if (username.isEmpty() || email.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(this, 
+                "Please fill in all fields.", 
+                "Error", 
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        User newUser = new User();
+        
+        if (newUser.signUp(username, email, password)) {
+            storage.saveUser(newUser);
+            JOptionPane.showMessageDialog(this, 
+                "Sign up successful! You can now log in.", 
+                "Success", 
+                JOptionPane.INFORMATION_MESSAGE);
+            clearFields(usernameField, emailField, passwordField);
+            cardLayout.show(mainPanel, LOGIN_PANEL);
+        } else {
+            JOptionPane.showMessageDialog(this, 
+                "Sign up failed. Please check your input and try again.", 
+                "Error", 
+                JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private void handleLogin(JTextField usernameField, JPasswordField passwordField) {
+        String username = usernameField.getText().trim();
+        String password = new String(passwordField.getPassword());
+        
+        if (username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(this, 
+                "Please enter both username and password.", 
+                "Error", 
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        User foundUser = storage.findUserByUsername(username);
+        
+        if (foundUser != null && foundUser.logIn(username, password)) {
+            JOptionPane.showMessageDialog(this, 
+                "Login successful! Welcome, " + username + "!", 
+                "Success", 
+                JOptionPane.INFORMATION_MESSAGE);
+            
+            clearFields(usernameField, passwordField);
+            
+            // Create and show dashboard
+            JPanel dashboardPanel = createDashboardPanel(username);
+            mainPanel.add(dashboardPanel, DASHBOARD_PANEL);
+            cardLayout.show(mainPanel, DASHBOARD_PANEL);
+        } else {
+            int choice = JOptionPane.showOptionDialog(this,
+                "Login failed! Incorrect username or password.\nWhat would you like to do?",
+                "Login Failed",
+                JOptionPane.YES_NO_CANCEL_OPTION,
+                JOptionPane.ERROR_MESSAGE,
+                null,
+                new String[]{"Try Again", "Forgot Password?", "Cancel"},
+                "Try Again");
+            
+            if (choice == 1) { // Forgot Password
+                handleForgotPassword();
+            } else if (choice == 2) { // Cancel
+                clearFields(usernameField, passwordField);
+                cardLayout.show(mainPanel, WELCOME_PANEL);
+            }
+            // If choice == 0 (Try Again), do nothing - stay on login panel
+        }
+    }
+    
+    private void handleForgotPassword() {
+        String email = JOptionPane.showInputDialog(this, 
+            "Enter your registered email address:", 
+            "Password Recovery", 
+            JOptionPane.QUESTION_MESSAGE);
+        
+        if (email != null && !email.trim().isEmpty()) {
+            String recoveredUsername = storage.recoverUsernameByEmail(email.trim());
+            String recoveredPassword = storage.recoverPasswordByEmail(email.trim());
+            
+            if (recoveredUsername != null && recoveredPassword != null) {
+                JOptionPane.showMessageDialog(this,
+                    "Account found!\nUsername: " + recoveredUsername + "\nPassword: " + recoveredPassword,
+                    "Account Recovery",
+                    JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this,
+                    "No account found with that email address.",
+                    "Account Not Found",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+    
+    private void clearFields(JComponent... fields) {
+        for (JComponent field : fields) {
+            if (field instanceof JTextField) {
+                ((JTextField) field).setText("");
+            } else if (field instanceof JPasswordField) {
+                ((JPasswordField) field).setText("");
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            new Main().setVisible(true);
+        });
+    }
+}
+
+
+
